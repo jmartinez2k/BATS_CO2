@@ -156,6 +156,14 @@ pCO2_time = lm(pCO2insitu~decy,data =  bats_co2sys_surf) # y (Sig) is a function
 summary(pCO2_time)
             
 #view(test)
-  
+
+# For HW:
+
+# Make decy vs Pco2 plot pretty
+# Include methods text for CO2sys in lab report
+
+# For thursday:
+# How do we check our model performance?
+# HOw do we plot our model predictions?
 ```
 
