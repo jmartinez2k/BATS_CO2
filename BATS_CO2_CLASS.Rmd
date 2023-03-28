@@ -40,7 +40,7 @@ bats_bottle <- read_delim("bats_bottle.txt",
 # import column names from BATS and assign to Data
 colnames(bats_bottle) = colnames(read_csv("bats_bottle.txt", 
     skip = 59))
-View(bats_bottle)
+#View(bats_bottle)
 
 ```
 ## Variable Names
@@ -97,15 +97,65 @@ bats_co2 = bats_bottle %>%
 # what are the units of these and what does CO2SYS need?
 
 #DIC umol/kg we need mol/kg
+# DIC*10^-6
+
 #TA is in uequiv, which is essentially (umol/kg) we need mol/kg
+
+# Alk*10^-6
+
 #S is in PSS and we will EOS80 (PSS)
+
+# Sal1
 #T is in degrees C and we need degrees
+
+# Temp
+
 #Sit is in umol/kg, we need mol/kg
+
+# Si1*10^-6
+
 #Pt is in umol/kg we need mol/kg
-#P_dbar is in dbar and we need bar
+
+# PO41*10^-6
+
+#P_gsw is in dbar and we need bar
+
+# P_gsw*10^-1
 
 # We will need to converrt units scaling with CO2SYS
 
 ```
 
+```{r}
+bats_co2sys =
+  bats_co2 %>% 
+  filter(Alk!=-999,CO2!=-999,Sal1!=-999,Temp!=-999,P_gsw!=-999,PO41!=-999,Si1!=-999,lonW!=-999,latN!=-999) %>% 
+  rename(TotalC=CO2) %>% 
+  mutate(carb(flag =15, var1 = Alk*10^-6, var2 = TotalC*10^-6, 
+                 S= Sal1, 
+                 T= Temp, 
+                 Patm=1, 
+                 P=P_gsw*10^-1, 
+                 Pt=PO41*10^-6,
+                 Sit=Si1*10^-6,
+                 k1k2="l", kf="pf", ks="d", pHscale="T", b="u74", gas="potential", 
+                 warn="y", eos="eos80", long=360-lonW, lat=latN))
+
+bats_co2sys_surf =
+  bats_co2sys %>% 
+  filter(Depth < 100) %>% 
+  filter(pCO2insitu > 200)
+
+
+bats_co2sys_surf %>% 
+  ggplot()+
+  geom_point(mapping=aes(x=decy,y=pCO2insitu))+
+  geom_smooth(aes(x=decy, y=pCO2insitu,method = "lm"))
+
+pCO2_time = lm(pCO2insitu~decy,data =  bats_co2sys_surf) # y (Sig) is a function of x(decy), lm(y~x,data = data )
+summary(pCO2_time)
+            
+#view(test)
+  
+```
 
