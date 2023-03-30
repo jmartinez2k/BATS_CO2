@@ -25,6 +25,9 @@ library(seacarb)
 library(gsw)
 library(readr)
 library(plotly)
+library(performance)
+library(readr)
+#
 
 ```
 
@@ -32,7 +35,7 @@ library(plotly)
 
 
 ```{r}
-library(readr)
+
 
 bats_bottle <- read_delim("bats_bottle.txt", 
     delim = "\t", escape_double = FALSE, 
@@ -144,13 +147,29 @@ bats_co2sys =
 bats_co2sys_surf =
   bats_co2sys %>% 
   filter(Depth < 100) %>% 
-  filter(pCO2insitu > 200)
+  filter(pCO2insitu > 200) # BATS told me this point was bad so I am not going to include it
 
 
 bats_co2sys_surf %>% 
   ggplot()+
-  geom_point(mapping=aes(x=decy,y=pCO2insitu))+
-  geom_smooth(aes(x=decy, y=pCO2insitu,method = "lm"))
+  geom_point(aes(x=decy,y=pCO2insitu), color = 'black')+
+  geom_line(aes(x=decy,y=pCO2insitu),color ='red')+
+  geom_smooth(aes(x=decy, y=pCO2insitu,method = "lm"),color='blue')+
+  xlab('Time')+
+  scale_x_continuous(limits = c(1991,2022), expand = c(0,0),breaks = seq(1990,2025,5))+
+  labs(y=expression(pCO[2]*" (µatm)"))+
+  #ggtitle('PCO2 Time Series (1988-2021)')+
+  labs(title=expression(pCO[2]*' BATS Time Series (1991-2021)'))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        axis.text.y = element_text(size = 13),
+        axis.text.x = element_text(size = 13),
+        #axis.title.y = element_text(vjust = 3, size = 12),
+        #axis.title.x = element_text(hjust = 0.45,vjust =-1, size = 12),
+        legend.position= "none",
+        plot.title = element_text(hjust = 0.5, size = 15))
 
 pCO2_time = lm(pCO2insitu~decy,data =  bats_co2sys_surf) # y (Sig) is a function of x(decy), lm(y~x,data = data )
 summary(pCO2_time)
@@ -162,8 +181,89 @@ summary(pCO2_time)
 # Make decy vs Pco2 plot pretty
 # Include methods text for CO2sys in lab report
 
+
 # For thursday:
 # How do we check our model performance?
 # HOw do we plot our model predictions?
 ```
 
+Methods:
+
+Using Co2sys in R:
+
+We first adjust all the parameters units measured in BATS by switching them from umol/kg to mol/kg in DIC,TA,Silicate,and Phosphate by multiplying by 10^-6. We also took depth from BATS bottle and got equivalent dbar pressure values needed by co2sys and also converted the units from dbar to bar by multiplying by 10^-1. Temperature and salinity could be used as measured and collected in the bats bottle data. We then inputted all the data once changed if needed into co2sys.By using mutate and piping we created a new dataframe with the prior data and resultant pCO2,carbonate ions,pH, and saturation state from co2sys.
+
+DIC umol/kg we need mol/kg
+# DIC*10^-6
+
+#TA is in uequiv, which is essentially (umol/kg) we need mol/kg
+
+# Alk*10^-6
+
+#S is in PSS and we will EOS80 (PSS)
+
+# Sal1
+#T is in degrees C and we need degrees
+
+# Temp
+
+#Sit is in umol/kg, we need mol/kg
+
+# Si1*10^-6
+
+#Pt is in umol/kg we need mol/kg
+
+# PO41*10^-6
+
+#P_gsw is in dbar and we need bar
+
+# P_gsw*10^-1
+
+
+```{r}
+# Checking model performance
+#install.packages('performance')
+#install.packages('see')
+#library(see)
+library(performance)
+check_model(pCO2_time) # Model assumptions appear valid
+summary(pCO2_time) #pvalue same as anova
+anova(pCO2_time) #pvalue is same as summary
+
+bats_co2sys_surf_pred = 
+
+  bats_co2sys_surf %>% 
+  mutate(predict(pCO2_time, interval ='prediction', level=0.95))
+# the base R way with cbind and do not need to rename outputs
+bats_co2sys_surf_pred = 
+cbind(bats_co2sys_surf, predict(pCO2_time, interval ='prediction', level =0.95))
+
+bats_co2sys_surf_pred %>% 
+  filter(decy>2000) %>% 
+  ggplot()+
+  geom_point(mapping = aes(x=decy,y=pCO2insitu))+
+  geom_line(aes(x=decy,y=fit),color ='red',size = 1.5)+
+  geom_ribbon(aes(x=decy,ymin = lwr,ymax = upr),alpha = 0.2,fill = 'purple')+
+  xlab('Time')+
+  scale_x_continuous(limits = c(2000,2022), expand = c(0,0),breaks = seq(2000,2025,5))+
+  labs(y=expression(pCO[2]*" (µatm)"))+
+  #ggtitle('PCO2 Time Series (1988-2021)')+
+  labs(title=expression(pCO[2]*' BATS Time Series (2000-2021)'))+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.line = element_line(color="black"),
+        axis.text.y = element_text(size = 13),
+        axis.text.x = element_text(size = 13),
+        #axis.title.y = element_text(vjust = 3, size = 12),
+        #axis.title.x = element_text(hjust = 0.45,vjust =-1, size = 12),
+        legend.position= "none",
+        plot.title = element_text(hjust = 0.5, size = 15))
+```
+
+## Is surface pCo2 increasing?
+
+There is a seasonal cycle in the surface ocean pCo2 at BATS with higher pCo2 observed in late summer to early fall and lower pCo2 observed in late winter and early spring. There is a detectable and consistent (Anova  p< 0.001) annual increase in pCo2 by 1.85 +-0.07 uatm/yr. 
+Also show plot with model. The figure caption describes plot (points = data, line = model, shaded region = 95% confidence intervals.)
+
+The rest of the HW is due thursay !
